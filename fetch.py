@@ -26,7 +26,7 @@ def get(url, tries=3):
     raise SystemExit(f"取得失敗: {url}")
 
 
-def text(url):
+def page_text(url):
     b = get(url)
     for enc in ("utf-8", "cp932"):
         try:
@@ -39,7 +39,7 @@ def text(url):
 def candidates():
     out = []
     try:
-        html = text(INDEX)
+        html = page_text(INDEX)
         for href, text in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S):
             t = re.sub(r"<[^>]+>", "", text)
             if "薬価基準収載品目リスト" in t and "まで" not in t:
@@ -64,7 +64,7 @@ def main():
     page = html = urls = None
     for c in candidates():
         try:
-            h = text(c)
+            h = page_text(c)
         except SystemExit:
             continue
         u = xlsx_links(c, h)
