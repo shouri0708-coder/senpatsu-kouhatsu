@@ -24,31 +24,48 @@ def get(url, tries=3):
     raise SystemExit(f"取得失敗: {url}")
 
 
-def find_list_page():
+def candidates():
+    out = []
     try:
         html = get(INDEX).decode("utf-8", "replace")
         for href, text in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S):
             t = re.sub(r"<[^>]+>", "", text)
             if "薬価基準収載品目リスト" in t and "まで" not in t:
-                return urljoin(INDEX, href)
+                out.append(urljoin(INDEX, href))
     except SystemExit:
         pass
-    return FALLBACK
+    year = datetime.now(JST).year
+    for y in (year, year - 1):
+        out.append(f"https://www.mhlw.go.jp/topics/{y}/04/tp{y}0401-01.html")
+    out.append(FALLBACK)
+    return list(dict.fromkeys(out))
+
+
+def xlsx_links(page, html):
+    urls = {}
+    for href, n in re.findall(r"""href=["']([^"']+?_0([1-5])\.xlsx)["']""", html):
+        urls.setdefault(n, urljoin(page, href))   # 目次（先頭側）の最初のリンクが最新版
+    return urls
 
 
 def main():
-    page = find_list_page()
-    html = get(page).decode("utf-8", "replace")
+    page = html = urls = None
+    for c in candidates():
+        try:
+            h = get(c).decode("utf-8", "replace")
+        except SystemExit:
+            continue
+        u = xlsx_links(c, h)
+        print("candidate", c, len(h), sorted(u))
+        if set(u) == set("12345"):
+            page, html, urls = c, h, u
+            break
+    if not page:
+        raise SystemExit("Excelリンクが揃うページが見つかりません")
     title = re.search(r"<title>(.*?)</title>", html, re.S)
     title = unescape(title.group(1)).strip() if title else ""
     m = re.search(r"（(令和[^）]*適用)）", title)
     applied = m.group(1) if m else ""
-    links = re.findall(r'href="([^"]+?_0([1-5])\.xlsx)"', html)
-    urls = {}
-    for href, n in links:          # 目次（ページ先頭側）の最初のリンクが最新版
-        urls.setdefault(n, urljoin(page, href))
-    if set(urls) != set("12345"):
-        raise SystemExit(f"Excelリンクが揃いません: {urls}")
     DATA.mkdir(exist_ok=True)
     for n, u in sorted(urls.items()):
         b = get(u)
