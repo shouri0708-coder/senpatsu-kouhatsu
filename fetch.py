@@ -7,6 +7,8 @@ from urllib.parse import urljoin
 
 INDEX = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000078916.html"
 FALLBACK = "https://www.mhlw.go.jp/topics/2026/04/tp20260401-01.html"
+# 診療報酬情報提供サービス「医薬品マスター」（全件）: 銘柄別の品名・カナ・一般名コード
+YMASTER = "https://shinryohoshu.mhlw.go.jp/shinryohoshu/downloadMenu/yFile"
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
       "Accept-Language": "ja,en;q=0.8"}
 DATA = Path(__file__).parent / "data"
@@ -24,10 +26,20 @@ def get(url, tries=3):
     raise SystemExit(f"取得失敗: {url}")
 
 
+def text(url):
+    b = get(url)
+    for enc in ("utf-8", "cp932"):
+        try:
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            pass
+    return b.decode("cp932", "replace")
+
+
 def candidates():
     out = []
     try:
-        html = get(INDEX).decode("utf-8", "replace")
+        html = text(INDEX)
         for href, text in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, re.S):
             t = re.sub(r"<[^>]+>", "", text)
             if "薬価基準収載品目リスト" in t and "まで" not in t:
@@ -52,7 +64,7 @@ def main():
     page = html = urls = None
     for c in candidates():
         try:
-            h = get(c).decode("utf-8", "replace")
+            h = text(c)
         except SystemExit:
             continue
         u = xlsx_links(c, h)
@@ -73,6 +85,15 @@ def main():
             raise SystemExit(f"Excelではありません: {u}")
         (DATA / f"0{n}.xlsx").write_bytes(b)
         print(n, u, len(b))
+    try:
+        b = get(YMASTER)
+        if b[:2] == b"PK":
+            (DATA / "y.zip").write_bytes(b)
+            print("y master", len(b))
+        else:
+            print("医薬品マスターがzipではありません", b[:80], file=sys.stderr)
+    except SystemExit as e:   # 取れない日は前回分を使う
+        print(e, file=sys.stderr)
     old = {}
     sp = DATA / "source.json"
     if sp.exists():
