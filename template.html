@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>先発・後発 検索</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mut:#667085;--line:#e4e7ec;--red:#d92d20;--org:#f79009;--grn:#12b76a;--blu:#2e90fa;--hit:#fff4e5;--bbg:#eff6ff;--gbg:#ecfdf3}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c25;--tx:#e6e9f0;--mut:#98a2b3;--line:#2a3040;--hit:#3a2a12;--bbg:#142033;--gbg:#11261c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 -apple-system,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif}
+header{padding:14px 16px 6px}h1{font-size:20px;margin:0}.sub{color:var(--mut);font-size:13px}
+.bar{padding:6px 16px;position:sticky;top:0;background:var(--bg);z-index:2}
+input[type=search]{width:100%;padding:12px 14px;font-size:18px;border:2px solid var(--blu);border-radius:10px;background:var(--card);color:var(--tx)}
+input[type=search]:focus{outline:3px solid color-mix(in srgb,var(--blu) 30%,transparent)}
+.ex{padding:2px 16px 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ex button{border:1px solid var(--line);background:var(--card);color:var(--tx);padding:4px 12px;border-radius:999px;cursor:pointer;font-size:14px}
+main{padding:4px 16px 24px}
+.ing{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.ing h2{font-size:16px;margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kb{font-size:12px;font-weight:400;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:0 8px}
+.grp{border-top:1px solid var(--line);padding:8px 0 4px}
+.gh{font-weight:600;margin-bottom:6px}.gh span{font-weight:400;color:var(--mut);font-size:13px;margin-left:6px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:640px){.cols{grid-template-columns:1fr}}
+.col{border-radius:8px;padding:6px 8px;min-width:0}
+.col h3{font-size:13px;margin:0 0 4px;display:flex;align-items:center;gap:6px}
+.col.b{background:var(--bbg)}.col.b h3{color:var(--blu)}
+.col.g{background:var(--gbg)}.col.g h3{color:var(--grn)}
+.col.o{background:var(--bg);margin-top:8px}.col.o h3{color:var(--mut)}
+.it{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:3px 6px;border-radius:6px;border-left:3px solid transparent}
+.it.hit{background:var(--hit);border-left-color:var(--org)}
+.nm{font-weight:600;overflow-wrap:anywhere}.mk{color:var(--mut);font-size:12px}
+.pr{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px}
+.pr small{color:var(--mut)}
+.tag{display:inline-block;font-size:11px;line-height:1.5;padding:0 6px;border-radius:999px;border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+.tag.s{border-color:var(--org);color:var(--org)}.tag.k{border-color:var(--red);color:var(--red)}
+.none{color:var(--mut);font-size:13px;padding:3px 6px}
+.more{width:100%;padding:8px;border:1px dashed var(--line);background:none;color:var(--mut);border-radius:8px;cursor:pointer;font-size:14px;margin-top:4px}
+.empty{color:var(--mut);padding:24px;text-align:center}
+footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--blu)}
+</style></head><body>
+<header><h1>先発・後発 検索</h1><div class="sub" id="sub"></div></header>
+<div class="bar"><input type="search" id="q" placeholder="🔍 品名・成分名を入力（先発でも後発でも。ひらがな可）" autocomplete="off" autofocus></div>
+<div class="ex" id="ex"><span class="sub">例：</span></div>
+<main id="main"></main>
+<footer>
+<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
+<div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
+</footer>
+<script>
+const D=__DATA__;
+const F={STAR:1,HOSHI:2,JUN:4,SENTEI:8,KEIKA:16,NOGE:32,SAME:64};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nz=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[ぁ-ゖ]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s　「」]/g,'');
+// 索引: ings=[key7,成分,区分,[ [規格,一般名,単位,[ [品名,メーカー,薬価,区分,flags,カナ,コード,経過措置] ]] ]]
+const ING=D.ings.map(([k,seibun,kubun,groups])=>{
+  const s=nz(seibun);
+  return {k,seibun,kubun,s,groups:groups.map(([kikaku,ippan,unit,items])=>{
+    const gs=nz(ippan);
+    return {kikaku,ippan,unit,gs,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
+  })};
+});
+const m=D.meta;
+$('#sub').textContent=`厚労省 薬価基準収載品目リスト${m.applied?'（'+m.applied+'）':''}　先発 ${m.brand.toLocaleString()}・後発 ${m.generic.toLocaleString()} 品目`;
+if(m.page)$('#src').href=m.page;
+['ロキソニン','アムロジピン','たけぷろん','モーラステープ'].forEach(w=>{const b=document.createElement('button');b.textContent=w;b.onclick=()=>{$('#q').value=w;run();};$('#ex').appendChild(b);});
+
+function search(q){
+  const ws=q.split(/[\s　]+/).map(nz).filter(Boolean);
+  if(!ws.length)return null;
+  const res=[];
+  for(const ing of ING){
+    let score=9,gHits=[];
+    const ingAll=ws.every(w=>ing.s.includes(w));
+    ing.groups.forEach((g,gi)=>{
+      let any=false;const hits=new Set();
+      g.items.forEach((it,ii)=>{
+        const own=ws.every(w=>it.own.includes(w));
+        if(own){hits.add(ii);any=true;score=Math.min(score,it.own.startsWith(ws[0])||it.own.includes('|'+ws[0])?0:2);}
+        else if(ws.every(w=>it.own.includes(w)||it.mk.includes(w)||g.gs.includes(w)||ing.s.includes(w))){any=true;if(ws.some(w=>it.own.includes(w)||it.mk.includes(w)))hits.add(ii);}
+      });
+      if(any){gHits.push({gi,hits});}
+    });
+    if(!gHits.length)continue;
+    if(ingAll)score=Math.min(score,ing.s.startsWith(ws[0])?1:3);
+    res.push({ing,gHits,score});
+  }
+  res.sort((a,b)=>a.score-b.score);
+  return res;
+}
+const yen=(p,u)=>p==null?'':`${p.toLocaleString(undefined,{maximumFractionDigits:2})}<small>円/${esc(u)}</small>`;
+function itemHtml(it,g,hit){
+  let t='';
+  if(it.f&F.JUN)t+='<span class="tag">準先発</span>';
+  if(it.f&F.HOSHI)t+='<span class="tag">☆</span>';
+  if(it.f&F.STAR)t+='<span class="tag">★</span>';
+  if(it.f&F.SENTEI)t+='<span class="tag s">選定療養</span>';
+  if(it.f&F.KEIKA)t+=`<span class="tag k">経過措置 ${esc(it.keika)}</span>`;
+  return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="pr">${yen(it.price,g.unit)}</span></div>`;
+}
+function groupHtml(g,hits){
+  const by={B:[],G:[],O:[]};
+  g.items.forEach((it,i)=>by[it.cat].push(itemHtml(it,g,hits&&hits.has(i))));
+  const noge=g.items.some(it=>it.cat==='B'&&(it.f&F.NOGE));
+  let h=`<div class="grp"><div class="gh">${esc(g.kikaku)}${g.ippan?`<span>${esc(g.ippan)}</span>`:''}</div>`;
+  if(by.B.length||by.G.length){
+    h+=`<div class="cols"><div class="col b"><h3>先発品 ${by.B.length||''}</h3>${by.B.join('')||'<div class="none">この規格の先発品なし</div>'}</div>`
+     +`<div class="col g"><h3>後発品 ${by.G.length||''}</h3>${by.G.join('')||`<div class="none">${noge?'後発品なし':'この剤形・規格の後発品なし'}</div>`}</div></div>`;
+  }
+  if(by.O.length)h+=`<div class="col o"><h3>区分なし ${by.O.length}</h3>${by.O.join('')}</div>`;
+  return h+'</div>';
+}
+let limit=30,last=null;
+function render(){
+  const res=last,main=$('#main');
+  if(!res){main.innerHTML='<div class="empty">品名か成分名を入力すると、同じ成分・規格の先発品と後発品が並んで表示されます。</div>';return;}
+  if(!res.length){main.innerHTML='<div class="empty">該当なし。品名の一部（例：「ロキソ」）や成分名でも検索できます。</div>';return;}
+  let h=`<div class="sub" style="margin-bottom:6px">${res.length} 成分が該当${res.length>limit?`（${limit} 件表示）`:''}</div>`;
+  res.slice(0,limit).forEach((r,ri)=>{
+    const shown=new Set(r.gHits.map(x=>x.gi));
+    const rest=r.ing.groups.length-shown.size;
+    h+=`<section class="ing"><h2>${esc(r.ing.seibun)}<span class="kb">${esc(r.ing.kubun)}</span></h2>`
+      +r.gHits.map(x=>groupHtml(r.ing.groups[x.gi],x.hits)).join('')
+      +(rest?`<button class="more" data-r="${ri}">同じ成分の他の規格・剤形を表示（${rest}）</button>`:'')+'</section>';
+  });
+  if(res.length>limit)h+='<button class="more" id="morebtn">さらに表示</button>';
+  main.innerHTML=h;
+}
+$('#main').onclick=e=>{
+  const b=e.target.closest('button.more');if(!b)return;
+  if(b.id==='morebtn'){limit+=30;render();return;}
+  const r=last[+b.dataset.r],shown=new Set(r.gHits.map(x=>x.gi));
+  b.outerHTML=r.ing.groups.map((g,gi)=>shown.has(gi)?'':groupHtml(g,null)).join('');
+};
+let tm;
+function run(){
+  const q=$('#q').value;limit=30;last=search(q);render();
+  try{history.replaceState(null,'',q?'#q='+encodeURIComponent(q):location.pathname);}catch(e){}
+}
+$('#q').oninput=()=>{clearTimeout(tm);tm=setTimeout(run,120);};
+const h0=decodeURIComponent((location.hash.match(/q=([^&]*)/)||[])[1]||'');
+if(h0)$('#q').value=h0;
+run();
+</script></body></html>
