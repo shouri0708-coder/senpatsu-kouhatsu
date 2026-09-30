@@ -1,7 +1,7 @@
 {
  "page": "https://www.mhlw.go.jp/topics/2026/04/tp20260401-01.html",
- "title": "�򉿊���ڕi�ڃ��X�g�y�ь㔭���i�Ɋւ�����ɂ��āi�ߘa�W�N10���P���K�p�j�b�����J����",
- "applied": "",
+ "title": "薬価基準収載品目リスト及び後発医薬品に関する情報について（令和８年10月１日適用）｜厚生労働省",
+ "applied": "令和８年10月１日適用",
  "urls": {
   "1": "https://www.mhlw.go.jp/topics/2026/04/xls/tp20260813-01_01.xlsx",
   "2": "https://www.mhlw.go.jp/topics/2026/04/xls/tp20260813-01_02.xlsx",
@@ -9,5 +9,5 @@
   "4": "https://www.mhlw.go.jp/topics/2026/04/xls/tp20260401-01_04.xlsx",
   "5": "https://www.mhlw.go.jp/topics/2026/04/xls/tp20261001-01_05.xlsx"
  },
- "fetched": "2026-09-30 13:37"
+ "fetched": "2026-09-30 13:47"
 }
