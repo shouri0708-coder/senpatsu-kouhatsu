@@ -59,11 +59,22 @@ def load_y():
     return rows, (m.group(1) if m else "")
 
 
+def name_key(s):
+    return re.sub(r"\s", "", unicodedata.normalize("NFKC", str(s or ""))).upper()
+
+
+def load_yj():
+    p = DATA / "yj_names.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
 def build():
     lst, umu = load_list()
     y, ydate = load_y()
-    # 有効なレコードのみ（廃止・「（選）」レコードを除く）
-    act = [r for r in y if r[0] != "9" and r[30] == "99999999" and r[41] != "2" and r[31] in lst]
+    yjn = load_yj()
+    # 有効なレコードのみ（廃止、選定療養用の「（選）」「（類）」レコードを除く）
+    act = [r for r in y if r[0] != "9" and r[30] == "99999999" and r[41] != "2"
+           and not re.search(r"（[選類]）$", r[4]) and r[31] in lst]
     referenced = {r[22] for r in act if r[22] not in ("", "0")}   # 銘柄から参照される統一名レコード
     seen_codes = set()
 
@@ -130,7 +141,13 @@ def build():
             price = int(price) if price == int(price) else price
         except ValueError:
             price = None
-        g["items"].append([nk(r[34] or r[4]), nk(L["maker"]), price, cat, flags, nk(r[6]), yk, keika])
+        # 添付文書リンク用のYJコード: 銘柄別収載は薬価基準コードと同じ(1)。統一名収載の銘柄は品名から引く。不明は0
+        if L["maker"]:
+            yj = 1
+        else:
+            c = [x for x in yjn.get(name_key(r[34] or r[4]), "").split(",") if x[:9] == yk[:9]]
+            yj = max(c) if c else 0
+        g["items"].append([nk(r[34] or r[4]), nk(L["maker"]), price, cat, flags, nk(r[6]), yk, keika, yj])
 
     # 成分（薬価基準コード先頭7桁）ごとにまとめる
     ings = defaultdict(lambda: {"seibun": "", "kubun": "", "groups": []})
@@ -160,6 +177,7 @@ def build():
     n_items = sum(len(g[3]) for i in out for g in i[3])
     meta = {"applied": nk(src.get("applied", "")), "fetched": src.get("fetched", ""), "page": src.get("page", ""),
             "ydate": ydate, "items": n_items, "ings": len(out),
+            "doc": sum(1 for i in out for g in i[3] for it in g[3] if it[8]),
             "brand": sum(1 for i in out for g in i[3] for it in g[3] if it[3] == "B"),
             "generic": sum(1 for i in out for g in i[3] for it in g[3] if it[3] == "G")}
     return {"meta": meta, "ings": out}

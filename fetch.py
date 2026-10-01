@@ -1,5 +1,5 @@
 """厚労省「薬価基準収載品目リスト及び後発医薬品に関する情報」の最新Excelを data/ に取得する。"""
-import json, re, sys, time, urllib.request
+import io, json, re, sys, time, unicodedata, urllib.request
 from datetime import datetime, timezone, timedelta
 from html import unescape
 from pathlib import Path
@@ -7,6 +7,8 @@ from urllib.parse import urljoin
 
 INDEX = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000078916.html"
 FALLBACK = "https://www.mhlw.go.jp/topics/2026/04/tp20260401-01.html"
+# 医療用医薬品供給状況報告: 銘柄ごとの YJコード＋品名（添付文書リンク用）
+KYOKYU = "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryou/kouhatu-iyaku/04_00003.html"
 # 診療報酬情報提供サービス「医薬品マスター」（全件）: 銘柄別の品名・カナ・一般名コード
 YMASTER = "https://shinryohoshu.mhlw.go.jp/shinryohoshu/downloadMenu/yFile"
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
@@ -34,6 +36,46 @@ def page_text(url):
         except UnicodeDecodeError:
             pass
     return b.decode("cp932", "replace")
+
+
+def name_key(s):
+    return re.sub(r"\s", "", unicodedata.normalize("NFKC", str(s or ""))).upper()
+
+
+def yj_names_from_xlsx(b):
+    """供給状況報告Excel → {品名(正規化): "YJコード,YJコード…"}"""
+    import openpyxl
+    ws = openpyxl.load_workbook(io.BytesIO(b), read_only=True, data_only=True).worksheets[0]
+    cy = cn = None
+    out = {}
+    for row in ws.iter_rows(values_only=True):
+        if cy is None:
+            for i, v in enumerate(row):
+                t = str(v or "")
+                if "YJコード" in t:
+                    cy = i
+                elif "品名" in t and cn is None:
+                    cn = i
+            if cy is None:
+                cn = None
+            continue
+        yj, nm = str(row[cy] or "").strip(), name_key(row[cn])
+        if re.fullmatch(r"[0-9A-Z]{12}", yj) and nm:
+            out.setdefault(nm, set()).add(yj)
+    return {k: ",".join(sorted(v)) for k, v in sorted(out.items())}
+
+
+def fetch_yj_names():
+    html = page_text(KYOKYU)
+    links = re.findall(r'href="([^"]*?/content/\d+/(\d{6})iyakuhinkyoukyu[^"]*?\.xlsx)"', html)
+    if not links:
+        raise SystemExit("供給状況Excelのリンクが見つかりません")
+    href, _ = max(links, key=lambda t: t[1])
+    m = yj_names_from_xlsx(get(urljoin(KYOKYU, href)))
+    if len(m) < 5000:
+        raise SystemExit(f"供給状況Excelの読み取り件数が少なすぎます: {len(m)}")
+    (DATA / "yj_names.json").write_text(json.dumps(m, ensure_ascii=False, indent=0), encoding="utf-8")
+    print("yj names", len(m))
 
 
 def candidates():
@@ -94,6 +136,10 @@ def main():
             print("医薬品マスターがzipではありません", b[:80], file=sys.stderr)
     except SystemExit as e:   # 取れない日は前回分を使う
         print(e, file=sys.stderr)
+    try:
+        fetch_yj_names()
+    except (SystemExit, Exception) as e:   # 取れない日は前回分を使う
+        print("yj_names:", e, file=sys.stderr)
     old = {}
     sp = DATA / "source.json"
     if sp.exists():

@@ -28,10 +28,13 @@ main{padding:4px 16px 24px}
 .it{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:3px 6px;border-radius:6px;border-left:3px solid transparent}
 .it.hit{background:var(--hit);border-left-color:var(--org)}
 .nm{font-weight:600;overflow-wrap:anywhere}.mk{color:var(--mut);font-size:12px}
-.pr{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:14px}
+.rt{margin-left:auto;display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap}
+.pr{font-variant-numeric:tabular-nums;font-size:14px}
 .pr small{color:var(--mut)}
 .tag{display:inline-block;font-size:11px;line-height:1.5;padding:0 6px;border-radius:999px;border:1px solid var(--line);color:var(--mut);white-space:nowrap}
 .tag.s{border-color:var(--org);color:var(--org)}.tag.k{border-color:var(--red);color:var(--red)}
+.doc{font-size:12px;color:var(--blu);text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:1px 8px;white-space:nowrap;background:var(--card)}
+.doc:hover{border-color:var(--blu)}
 .none{color:var(--mut);font-size:13px;padding:3px 6px}
 .more{width:100%;padding:8px;border:1px dashed var(--line);background:none;color:var(--mut);border-radius:8px;cursor:pointer;font-size:14px;margin-top:4px}
 .empty{color:var(--mut);padding:24px;text-align:center}
@@ -43,7 +46,7 @@ footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--
 <main id="main"></main>
 <footer>
 <div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
-<div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
+<div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。「添付文書」はPMDA（医薬品医療機器総合機構）の該当ページを別タブで開きます。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
 </footer>
 <script>
 const D=__DATA__;
@@ -56,7 +59,7 @@ const ING=D.ings.map(([k,seibun,kubun,groups])=>{
   const s=nz(seibun);
   return {k,seibun,kubun,s,groups:groups.map(([kikaku,ippan,unit,items])=>{
     const gs=nz(ippan);
-    return {kikaku,ippan,unit,gs,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
+    return {kikaku,ippan,unit,gs,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],yj:a[8]===1?a[6]:a[8],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
   })};
 });
 const m=D.meta;
@@ -88,6 +91,11 @@ function search(q){
   return res;
 }
 const yen=(p,u)=>p==null?'':`${p.toLocaleString(undefined,{maximumFractionDigits:2})}<small>円/${esc(u)}</small>`;
+const PMDA='https://www.pmda.go.jp/PmdaSearch/';
+function docLink(it){
+  return it.yj?`<a class="doc" href="${PMDA}rdSearch/02/${it.yj}?user=1" target="_blank" rel="noopener">添付文書</a>`
+    :`<a class="doc" href="${PMDA}iyakuDetail/GeneralList/${it.yk.slice(0,9)}" target="_blank" rel="noopener" title="同じ成分・規格の一覧（PMDA）">添付文書一覧</a>`;
+}
 function itemHtml(it,g,hit){
   let t='';
   if(it.f&F.JUN)t+='<span class="tag">準先発</span>';
@@ -95,7 +103,7 @@ function itemHtml(it,g,hit){
   if(it.f&F.STAR)t+='<span class="tag">★</span>';
   if(it.f&F.SENTEI)t+='<span class="tag s">選定療養</span>';
   if(it.f&F.KEIKA)t+=`<span class="tag k">経過措置 ${esc(it.keika)}</span>`;
-  return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="pr">${yen(it.price,g.unit)}</span></div>`;
+  return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="rt"><span class="pr">${yen(it.price,g.unit)}</span>${docLink(it)}</span></div>`;
 }
 function groupHtml(g,hits){
   const by={B:[],G:[],O:[]};
