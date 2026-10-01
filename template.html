@@ -46,7 +46,7 @@ footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--
 <div class="ex" id="ex"><span class="sub">例：</span></div>
 <main id="main"></main>
 <footer>
-<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
+<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象。金額は先発品を希望した場合の「特別の料金」の目安（1錠など単位あたり・税込。最も高い後発品との価格差の2分の1＋消費税。実際の額は処方量と点数計算の端数で変わります）／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
 <div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。「添付文書」はPMDA（医薬品医療機器総合機構）の該当ページを別タブで開きます。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
 </footer>
 <script>
@@ -60,7 +60,7 @@ const ING=D.ings.map(([k,seibun,kubun,groups])=>{
   const s=nz(seibun);
   return {k,seibun,kubun,s,groups:groups.map(([kikaku,ippan,unit,items,sim])=>{
     const gs=nz(ippan);
-    return {kikaku,ippan,unit,gs,sim,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],yj:a[8]===1?a[6]:a[8],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
+    return {kikaku,ippan,unit,gs,sim,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],yj:a[8]===1?a[6]:a[8],extra:a[9],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
   })};
 });
 const m=D.meta;
@@ -106,7 +106,7 @@ function itemHtml(it,g,hit){
   if(it.f&F.JUN)t+='<span class="tag">準先発</span>';
   if(it.f&F.HOSHI)t+='<span class="tag">☆</span>';
   if(it.f&F.STAR)t+='<span class="tag">★</span>';
-  if(it.f&F.SENTEI)t+='<span class="tag s">選定療養</span>';
+  if(it.f&F.SENTEI)t+=`<span class="tag s">選定療養${it.extra>0?` ＋${(it.extra*1.1).toLocaleString(undefined,{maximumFractionDigits:2})}円/${esc(g.unit)}`:''}</span>`;
   if(it.f&F.KEIKA)t+=`<span class="tag k">経過措置 ${esc(it.keika)}</span>`;
   return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="rt"><span class="pr">${yen(it.price,g.unit)}</span>${docLink(it)}</span></div>`;
 }

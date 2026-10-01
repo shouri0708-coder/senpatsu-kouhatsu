@@ -91,6 +91,14 @@ def build():
     # 有効なレコードのみ（廃止、選定療養用の「（選）」「（類）」レコードを除く）
     act = [r for r in y if r[0] != "9" and r[30] == "99999999" and r[41] != "2"
            and not re.search(r"（[選類]）$", r[4]) and r[31] in lst]
+    # 選定療養: 「（選）」レコードの金額＝保険外併用療養費の算出に用いる価格。先発薬価との差が特別の料金（税抜・単位あたり）
+    sentei = {}
+    for r in y:
+        if r[41] == "2" and r[0] != "9" and r[30] == "99999999":
+            try:
+                sentei[r[40]] = float(r[11])
+            except ValueError:
+                pass
     referenced = {r[22] for r in act if r[22] not in ("", "0")}   # 銘柄から参照される統一名レコード
     seen_codes = set()
 
@@ -163,7 +171,10 @@ def build():
         else:
             c = [x for x in yjn.get(name_key(r[34] or r[4]), "").split(",") if x[:9] == yk[:9]]
             yj = max(c) if c else 0
-        g["items"].append([nk(r[34] or r[4]), nk(L["maker"]), price, cat, flags, nk(r[6]), yk, keika, yj])
+        extra = 0
+        if r[41] == "1" and price is not None and code in sentei:
+            extra = round(price - sentei[code], 2)
+        g["items"].append([nk(r[34] or r[4]), nk(L["maker"]), price, cat, flags, nk(r[6]), yk, keika, yj, extra])
 
     # 成分（薬価基準コード先頭7桁）ごとにまとめる
     ings = defaultdict(lambda: {"seibun": "", "kubun": "", "groups": []})
