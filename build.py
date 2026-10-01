@@ -1,6 +1,7 @@
 """厚労省リスト(data/01-05.xlsx)＋医薬品マスター(data/y.zip) → docs/index.html（先発・後発 検索）"""
 import csv, io, json, re, unicodedata, zipfile
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import openpyxl
@@ -189,6 +190,9 @@ def main():
     js = json.dumps(d, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     (ROOT / "docs").mkdir(exist_ok=True)
     (ROOT / "docs" / "index.html").write_text(html.replace("__DATA__", js), encoding="utf-8")
+    # 自動更新が最後に動いた時刻（データに変更がない日も更新される）
+    now = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M")
+    (ROOT / "docs" / "status.json").write_text(json.dumps({"checked": now}), encoding="utf-8")
     print(d["meta"])
 
 

@@ -65,6 +65,10 @@ const ING=D.ings.map(([k,seibun,kubun,groups])=>{
 const m=D.meta;
 $('#sub').textContent=`厚労省 薬価基準収載品目リスト${m.applied?'（'+m.applied+'）':''}　先発 ${m.brand.toLocaleString()}・後発 ${m.generic.toLocaleString()} 品目`;
 if(m.page)$('#src').href=m.page;
+fetch('status.json?t='+Date.now()).then(r=>r.json()).then(s=>{
+  const d=String(s.checked||'').match(/^\d{4}-(\d\d)-(\d\d) (\d\d:\d\d)/);
+  if(d)$('#sub').textContent+=`　最終更新：${+d[1]}/${+d[2]} ${d[3]}`;
+}).catch(()=>{});
 ['ロキソニン','アムロジピン','たけぷろん','モーラステープ'].forEach(w=>{const b=document.createElement('button');b.textContent=w;b.onclick=()=>{$('#q').value=w;run();};$('#ex').appendChild(b);});
 
 function search(q){
