@@ -18,6 +18,7 @@ main{padding:4px 16px 24px}
 .kb{font-size:12px;font-weight:400;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:0 8px}
 .grp{border-top:1px solid var(--line);padding:8px 0 4px}
 .gh{font-weight:600;margin-bottom:6px}.gh span{font-weight:400;color:var(--mut);font-size:13px;margin-left:6px}
+.gh .tag.sm{margin:0 8px 0 0;font-size:11px;border-color:var(--blu);color:var(--blu)}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media(max-width:640px){.cols{grid-template-columns:1fr}}
 .col{border-radius:8px;padding:6px 8px;min-width:0}
@@ -45,7 +46,7 @@ footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--
 <div class="ex" id="ex"><span class="sub">例：</span></div>
 <main id="main"></main>
 <footer>
-<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
+<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
 <div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。「添付文書」はPMDA（医薬品医療機器総合機構）の該当ページを別タブで開きます。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
 </footer>
 <script>
@@ -57,9 +58,9 @@ const nz=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[ぁ-ゖ]/g,c
 // 索引: ings=[key7,成分,区分,[ [規格,一般名,単位,[ [品名,メーカー,薬価,区分,flags,カナ,コード,経過措置] ]] ]]
 const ING=D.ings.map(([k,seibun,kubun,groups])=>{
   const s=nz(seibun);
-  return {k,seibun,kubun,s,groups:groups.map(([kikaku,ippan,unit,items])=>{
+  return {k,seibun,kubun,s,groups:groups.map(([kikaku,ippan,unit,items,sim])=>{
     const gs=nz(ippan);
-    return {kikaku,ippan,unit,gs,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],yj:a[8]===1?a[6]:a[8],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
+    return {kikaku,ippan,unit,gs,sim,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],yj:a[8]===1?a[6]:a[8],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
   })};
 });
 const m=D.meta;
@@ -109,11 +110,11 @@ function itemHtml(it,g,hit){
   if(it.f&F.KEIKA)t+=`<span class="tag k">経過措置 ${esc(it.keika)}</span>`;
   return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="rt"><span class="pr">${yen(it.price,g.unit)}</span>${docLink(it)}</span></div>`;
 }
-function groupHtml(g,hits){
+function groupHtml(g,hits,sim){
   const by={B:[],G:[],O:[]};
   g.items.forEach((it,i)=>by[it.cat].push(itemHtml(it,g,hits&&hits.has(i))));
   const noge=g.items.some(it=>it.cat==='B'&&(it.f&F.NOGE));
-  let h=`<div class="grp"><div class="gh">${esc(g.kikaku)}${g.ippan?`<span>${esc(g.ippan)}</span>`:''}</div>`;
+  let h=`<div class="grp"><div class="gh">${sim?'<span class="tag sm">類似剤形</span>':''}${esc(g.kikaku)}${g.ippan?`<span>${esc(g.ippan)}</span>`:''}</div>`;
   if(by.B.length||by.G.length){
     h+=`<div class="cols"><div class="col b"><h3>先発品 ${by.B.length||''}</h3>${by.B.join('')||'<div class="none">この規格の先発品なし</div>'}</div>`
      +`<div class="col g"><h3>後発品 ${by.G.length||''}</h3>${by.G.join('')||`<div class="none">${noge?'後発品なし':'この剤形・規格の後発品なし'}</div>`}</div></div>`;
@@ -128,10 +129,16 @@ function render(){
   if(!res.length){main.innerHTML='<div class="empty">該当なし。品名の一部（例：「ロキソ」）や成分名でも検索できます。</div>';return;}
   let h=`<div class="sub" style="margin-bottom:6px">${res.length} 成分が該当${res.length>limit?`（${limit} 件表示）`:''}</div>`;
   res.slice(0,limit).forEach((r,ri)=>{
-    const shown=new Set(r.gHits.map(x=>x.gi));
-    const rest=r.ing.groups.length-shown.size;
+    // ヒットした枠の直後に、含量が同じ類似剤形（錠⇔OD錠⇔カプセル等）の枠を並べる
+    const G=r.ing.groups,shown=new Set(r.gHits.map(x=>x.gi));let body='';
+    r.gHits.forEach(x=>{
+      body+=groupHtml(G[x.gi],x.hits);
+      if(G[x.gi].sim)G.forEach((g,gi)=>{if(!shown.has(gi)&&g.sim===G[x.gi].sim){shown.add(gi);body+=groupHtml(g,null,true);}});
+    });
+    r.shown=shown;
+    const rest=G.length-shown.size;
     h+=`<section class="ing"><h2>${esc(r.ing.seibun)}<span class="kb">${esc(r.ing.kubun)}</span></h2>`
-      +r.gHits.map(x=>groupHtml(r.ing.groups[x.gi],x.hits)).join('')
+      +body
       +(rest?`<button class="more" data-r="${ri}">同じ成分の他の規格・剤形を表示（${rest}）</button>`:'')+'</section>';
   });
   if(res.length>limit)h+='<button class="more" id="morebtn">さらに表示</button>';
@@ -140,7 +147,7 @@ function render(){
 $('#main').onclick=e=>{
   const b=e.target.closest('button.more');if(!b)return;
   if(b.id==='morebtn'){limit+=30;render();return;}
-  const r=last[+b.dataset.r],shown=new Set(r.gHits.map(x=>x.gi));
+  const r=last[+b.dataset.r],shown=r.shown;
   b.outerHTML=r.ing.groups.map((g,gi)=>shown.has(gi)?'':groupHtml(g,null)).join('');
 };
 let tm;

@@ -69,6 +69,21 @@ def load_yj():
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
+# 類似剤形（内用薬のみ）: 薬価基準コード8桁目の剤形記号 → クラス。徐放(G,N)・腸溶(H)・舌下等(K)は対象外
+SIM_CLASS = {**dict.fromkeys("FLM", "錠・カプセル"), **dict.fromkeys("ABCDER", "散・顆粒・DS"), **dict.fromkeys("QS", "液・シロップ")}
+SLOW_RE = re.compile(r"徐放|持続|チュアブル|舌下|バッカル")   # 製剤の性質が違うものは類似剤形として並べない（腸溶錠は剤形記号Hで除外）
+UNIT_RE = re.compile(r"^(.+?)1(錠|カプセル|丸|g|mL|包)$")
+
+
+def sim_key(kubun, g9, kikaku):
+    """同じ含量・類似剤形の枠を結ぶキー。含量が読めないもの（配合剤など）は空"""
+    if kubun != "内用薬":
+        return ""
+    cls = SIM_CLASS.get(g9[7])
+    m = UNIT_RE.match(kikaku)
+    return f"{cls}|{m.group(1)}" if cls and m else ""
+
+
 def build():
     lst, umu = load_list()
     y, ydate = load_y()
@@ -162,9 +177,12 @@ def build():
         ing = ings[yk[:7]]
         ing["seibun"] = ing["seibun"] or nk(L["seibun"]) or g["items"][0][0]
         ing["kubun"] = ing["kubun"] or nk(L["kubun"])
-        ing["groups"].append([min(i[6] for i in g["items"])[:9], " / ".join(sorted(g["kikaku"])),
+        g9 = min(i[6] for i in g["items"])[:9]
+        ing["groups"].append([g9, " / ".join(sorted(g["kikaku"])),
                               " / ".join(sorted(g["ippan"])) or " / ".join(sorted(g["touitsu"])),
-                              g["unit"], g["items"]])
+                              g["unit"], g["items"],
+                              "" if SLOW_RE.search(" ".join([*g["ippan"], *g["touitsu"], *(i[0] for i in g["items"])]))
+                              else sim_key(nk(L["kubun"]), g9, sorted(g["kikaku"])[0])])
     out = []
     for k7, ing in ings.items():
         ing["groups"].sort(key=lambda g: g[0])
