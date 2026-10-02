@@ -11,6 +11,10 @@ header{padding:14px 16px 6px}h1{font-size:20px;margin:0}.sub{color:var(--mut);fo
 input[type=search]{width:100%;padding:12px 14px;font-size:18px;border:2px solid var(--blu);border-radius:10px;background:var(--card);color:var(--tx)}
 input[type=search]:focus{outline:3px solid color-mix(in srgb,var(--blu) 30%,transparent)}
 .ex{padding:2px 16px 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lg{padding:0 16px 8px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--mut)}
+.lg>span{display:inline-flex;align-items:center;gap:5px}
+.lg .tag.sm{border-color:var(--blu);color:var(--blu)}
+.tag[title]{cursor:help}
 .ex button{border:1px solid var(--line);background:var(--card);color:var(--tx);padding:4px 12px;border-radius:999px;cursor:pointer;font-size:14px}
 main{padding:4px 16px 24px}
 .ing{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
@@ -44,6 +48,7 @@ footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--
 <header><h1>先発・後発 検索</h1><div class="sub" id="sub"></div></header>
 <div class="bar"><input type="search" id="q" placeholder="🔍 品名・成分名を入力（先発でも後発でも。ひらがな可）" autocomplete="off" autofocus></div>
 <div class="ex" id="ex"><span class="sub">例：</span></div>
+<div class="lg"><span><span class="tag">★</span>先発と同額以上の後発品（加算の対象外）</span><span><span class="tag">☆</span>後発と同額以下の先発品</span><span><span class="tag s">選定療養 ＋◯円</span>先発を希望した場合の特別の料金（税込）</span><span><span class="tag sm">類似剤形</span>含量が同じで剤形が近いもの</span></div>
 <main id="main"></main>
 <footer>
 <div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象。金額は先発品を希望した場合の「特別の料金」の目安（1錠など単位あたり・税込。最も高い後発品との価格差の2分の1＋消費税。実際の額は処方量と点数計算の端数で変わります）／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
@@ -103,10 +108,10 @@ function docLink(it){
 }
 function itemHtml(it,g,hit){
   let t='';
-  if(it.f&F.JUN)t+='<span class="tag">準先発</span>';
-  if(it.f&F.HOSHI)t+='<span class="tag">☆</span>';
-  if(it.f&F.STAR)t+='<span class="tag">★</span>';
-  if(it.f&F.SENTEI)t+=`<span class="tag s">選定療養${it.extra>0?` ＋${(it.extra*1.1).toLocaleString(undefined,{maximumFractionDigits:2})}円/${esc(g.unit)}`:''}</span>`;
+  if(it.f&F.JUN)t+='<span class="tag" title="昭和42年以前に収載され、価格差のある後発品があるもの">準先発</span>';
+  if(it.f&F.HOSHI)t+='<span class="tag" title="後発品と同額以下の先発品（置換え率の計算から除外）">☆</span>';
+  if(it.f&F.STAR)t+='<span class="tag" title="先発品と同額以上の後発品（加算等の算定対象外）">★</span>';
+  if(it.f&F.SENTEI)t+=`<span class="tag s" title="先発品を希望した場合の特別の料金（単位あたり・税込の目安）">選定療養${it.extra>0?` ＋${(it.extra*1.1).toLocaleString(undefined,{maximumFractionDigits:2})}円/${esc(g.unit)}`:''}</span>`;
   if(it.f&F.KEIKA)t+=`<span class="tag k">経過措置 ${esc(it.keika)}</span>`;
   return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="rt"><span class="pr">${yen(it.price,g.unit)}</span>${docLink(it)}</span></div>`;
 }
@@ -114,7 +119,7 @@ function groupHtml(g,hits,sim){
   const by={B:[],G:[],O:[]};
   g.items.forEach((it,i)=>by[it.cat].push(itemHtml(it,g,hits&&hits.has(i))));
   const noge=g.items.some(it=>it.cat==='B'&&(it.f&F.NOGE));
-  let h=`<div class="grp"><div class="gh">${sim?'<span class="tag sm">類似剤形</span>':''}${esc(g.kikaku)}${g.ippan?`<span>${esc(g.ippan)}</span>`:''}</div>`;
+  let h=`<div class="grp"><div class="gh">${sim?'<span class="tag sm" title="含量が同じで剤形が近い枠（徐放性など性質が違う場合は変更不可）">類似剤形</span>':''}${esc(g.kikaku)}${g.ippan?`<span>${esc(g.ippan)}</span>`:''}</div>`;
   if(by.B.length||by.G.length){
     h+=`<div class="cols"><div class="col b"><h3>先発品 ${by.B.length||''}</h3>${by.B.join('')||'<div class="none">この規格の先発品なし</div>'}</div>`
      +`<div class="col g"><h3>後発品 ${by.G.length||''}</h3>${by.G.join('')||`<div class="none">${noge?'後発品なし':'この剤形・規格の後発品なし'}</div>`}</div></div>`;
