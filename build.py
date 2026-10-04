@@ -64,6 +64,11 @@ def name_key(s):
     return re.sub(r"\s", "", unicodedata.normalize("NFKC", str(s or ""))).upper()
 
 
+def load_yakkou():
+    p = DATA / "yakkou.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
 def load_yj():
     p = DATA / "yj_names.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
@@ -88,6 +93,7 @@ def build():
     lst, umu = load_list()
     y, ydate = load_y()
     yjn = load_yj()
+    yakkou = load_yakkou()
     # 有効なレコードのみ（廃止、選定療養用の「（選）」「（類）」レコードを除く）
     act = [r for r in y if r[0] != "9" and r[30] == "99999999" and r[41] != "2"
            and not re.search(r"（[選類]）$", r[4]) and r[31] in lst]
@@ -197,7 +203,7 @@ def build():
     out = []
     for k7, ing in ings.items():
         ing["groups"].sort(key=lambda g: g[0])
-        out.append([k7, ing["seibun"], ing["kubun"], [g[1:] for g in ing["groups"]]])
+        out.append([k7, ing["seibun"], ing["kubun"], [g[1:] for g in ing["groups"]], yakkou.get(k7[:3], "")])
     out.sort(key=lambda i: (i[1], i[0]))
 
     src = {}

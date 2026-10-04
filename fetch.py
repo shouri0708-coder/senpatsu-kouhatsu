@@ -46,8 +46,8 @@ def yj_names_from_xlsx(b):
     """供給状況報告Excel → {品名(正規化): "YJコード,YJコード…"}"""
     import openpyxl
     ws = openpyxl.load_workbook(io.BytesIO(b), read_only=True, data_only=True).worksheets[0]
-    cy = cn = None
-    out = {}
+    cy = cn = ck = None
+    out, yak = {}, {}
     for row in ws.iter_rows(values_only=True):
         if cy is None:
             for i, v in enumerate(row):
@@ -56,13 +56,21 @@ def yj_names_from_xlsx(b):
                     cy = i
                 elif "品名" in t and cn is None:
                     cn = i
+                elif "薬効分類" in t and ck is None:
+                    ck = i
             if cy is None:
-                cn = None
+                cn = ck = None
             continue
         yj, nm = str(row[cy] or "").strip(), name_key(row[cn])
         if re.fullmatch(r"[0-9A-Z]{12}", yj) and nm:
             out.setdefault(nm, set()).add(yj)
-    return {k: ",".join(sorted(v)) for k, v in sorted(out.items())}
+            if ck is not None:   # 薬効分類: YJコード先頭3桁（薬効分類番号）→ 分類名
+                k = unicodedata.normalize("NFKC", str(row[ck] or "")).strip().replace(",", "、")
+                if k and yj[:3].isdigit():
+                    yak.setdefault(yj[:3], {}).setdefault(k, 0)
+                    yak[yj[:3]][k] += 1
+    yak = {c: max(v, key=v.get) for c, v in sorted(yak.items())}
+    return {k: ",".join(sorted(v)) for k, v in sorted(out.items())}, yak
 
 
 def fetch_yj_names():
@@ -71,11 +79,16 @@ def fetch_yj_names():
     if not links:
         raise SystemExit("供給状況Excelのリンクが見つかりません")
     href, _ = max(links, key=lambda t: t[1])
-    m = yj_names_from_xlsx(get(urljoin(KYOKYU, href)))
+    m, yak = yj_names_from_xlsx(get(urljoin(KYOKYU, href)))
     if len(m) < 5000:
         raise SystemExit(f"供給状況Excelの読み取り件数が少なすぎます: {len(m)}")
     (DATA / "yj_names.json").write_text(json.dumps(m, ensure_ascii=False, indent=0), encoding="utf-8")
     print("yj names", len(m))
+    if yak:   # 一度取れた分類は残す（Excelから品目が消えても表示を維持）
+        p = DATA / "yakkou.json"
+        old = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        p.write_text(json.dumps({**old, **yak}, ensure_ascii=False, indent=0, sort_keys=True), encoding="utf-8")
+        print("yakkou", len(yak))
 
 
 def candidates():

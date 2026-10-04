@@ -19,6 +19,7 @@ input[type=search]:focus{outline:3px solid color-mix(in srgb,var(--blu) 30%,tran
 main{padding:4px 16px 24px}
 .ing{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
 .ing h2{font-size:16px;margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kb.yk{color:var(--tx);border-color:transparent;background:var(--bg)}
 .kb{font-size:12px;font-weight:400;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:0 8px}
 .grp{border-top:1px solid var(--line);padding:8px 0 4px}
 .gh{font-weight:600;margin-bottom:6px}.gh span{font-weight:400;color:var(--mut);font-size:13px;margin-left:6px}
@@ -51,7 +52,7 @@ footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--
 <div class="lg"><span><span class="tag">★</span>先発と同額以上の後発品（加算の対象外）</span><span><span class="tag">☆</span>後発と同額以下の先発品</span><span><span class="tag s">選定療養 ＋◯円</span>先発を希望した場合の特別の料金（税込）</span><span><span class="tag sm">類似剤形</span>含量が同じで剤形が近いもの</span></div>
 <main id="main"></main>
 <footer>
-<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象。金額は先発品を希望した場合の「特別の料金」の目安（1錠など単位あたり・税込。最も高い後発品との価格差の2分の1＋消費税。実際の額は処方量と点数計算の端数で変わります）／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
+<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／成分名の横の灰色の印＝薬効分類（厚労省 供給状況報告の分類名）／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象。金額は先発品を希望した場合の「特別の料金」の目安（1錠など単位あたり・税込。最も高い後発品との価格差の2分の1＋消費税。実際の額は処方量と点数計算の端数で変わります）／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
 <div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。「添付文書」はPMDA（医薬品医療機器総合機構）の該当ページを別タブで開きます。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
 </footer>
 <script>
@@ -61,9 +62,9 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const nz=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[ぁ-ゖ]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60)).replace(/[\s　「」]/g,'');
 // 索引: ings=[key7,成分,区分,[ [規格,一般名,単位,[ [品名,メーカー,薬価,区分,flags,カナ,コード,経過措置] ]] ]]
-const ING=D.ings.map(([k,seibun,kubun,groups])=>{
+const ING=D.ings.map(([k,seibun,kubun,groups,yakkou])=>{
   const s=nz(seibun);
-  return {k,seibun,kubun,s,groups:groups.map(([kikaku,ippan,unit,items,sim])=>{
+  return {k,seibun,kubun,yakkou,s,groups:groups.map(([kikaku,ippan,unit,items,sim])=>{
     const gs=nz(ippan);
     return {kikaku,ippan,unit,gs,sim,items:items.map(a=>({name:a[0],maker:a[1],price:a[2],cat:a[3],f:a[4],yk:a[6],keika:a[7],yj:a[8]===1?a[6]:a[8],extra:a[9],own:nz(a[0])+'|'+nz(a[5])+'|'+a[6],mk:nz(a[1])}))};
   })};
@@ -142,7 +143,7 @@ function render(){
     });
     r.shown=shown;
     const rest=G.length-shown.size;
-    h+=`<section class="ing"><h2>${esc(r.ing.seibun)}<span class="kb">${esc(r.ing.kubun)}</span></h2>`
+    h+=`<section class="ing"><h2>${esc(r.ing.seibun)}${r.ing.yakkou?`<span class="kb yk" title="薬効分類">${esc(r.ing.yakkou)}</span>`:''}<span class="kb">${esc(r.ing.kubun)}</span></h2>`
       +body
       +(rest?`<button class="more" data-r="${ri}">同じ成分の他の規格・剤形を表示（${rest}）</button>`:'')+'</section>';
   });
