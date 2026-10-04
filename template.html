@@ -49,10 +49,10 @@ footer{padding:0 16px 40px;color:var(--mut);font-size:12px}footer a{color:var(--
 <header><h1>先発・後発 検索</h1><div class="sub" id="sub"></div></header>
 <div class="bar"><input type="search" id="q" placeholder="🔍 品名・成分名を入力（先発でも後発でも。ひらがな可）" autocomplete="off" autofocus></div>
 <div class="ex" id="ex"><span class="sub">例：</span></div>
-<div class="lg"><span><span class="tag">★</span>先発と同額以上の後発品（加算の対象外）</span><span><span class="tag">☆</span>後発と同額以下の先発品</span><span><span class="tag s">選定療養 ＋◯円</span>先発を希望した場合の特別の料金（税込）</span><span><span class="tag sm">類似剤形</span>含量が同じで剤形が近いもの</span></div>
+<div class="lg"><span><span class="tag">★</span>先発と同額以上の後発品（加算の対象外）</span><span><span class="tag">☆</span>後発と同額以下の先発品</span><span><span class="tag s">選定療養 差額の1/2</span>特別の料金のもとになる額。内服は1日分ごとに点数計算（最低 税込11円/日）</span><span><span class="tag sm">類似剤形</span>含量が同じで剤形が近いもの</span></div>
 <main id="main"></main>
 <footer>
-<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／成分名の横の灰色の印＝薬効分類（厚労省 供給状況報告の分類名）／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象。金額は先発品を希望した場合の「特別の料金」の目安（1錠など単位あたり・税込。最も高い後発品との価格差の2分の1＋消費税。実際の額は処方量と点数計算の端数で変わります）／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
+<div>★＝先発品と同額以上の後発品（加算等の算定対象外）／☆＝後発品と同額以下の先発品／成分名の横の灰色の印＝薬効分類（厚労省 供給状況報告の分類名）／準先発＝昭和42年以前収載で価格差のある後発品があるもの／選定療養＝長期収載品の選定療養の対象。「差額の1/2」は最も高い後発品との価格差の2分の1（税抜・1錠など単位あたり）。特別の料金は、この額×数量を内服は1日分ごと（外用・頓服・注射は1調剤分ごと、同じ剤に複数あれば合算）に薬剤料と同じ方法で点数にし（15円以下は1点、以降10円ごとに1点）、×10円＋消費税。差額がわずかでも1点（税込11円）かかります／類似剤形＝含量が同じで剤形が近い枠（錠・OD錠・カプセル／散・顆粒・細粒・DS／液・シロップ。内用薬のみ。徐放性など製剤の性質が違う場合は変更できません）／区分なし＝厚労省リストで先発・後発の区分がないもの（基礎的医薬品・局方品など）</div>
 <div>同じ枠内＝成分・剤形・規格が同じもの。薬価は医薬品マスター掲載額。出典：<a id="src" target="_blank" rel="noopener">厚生労働省 薬価基準収載品目リスト及び後発医薬品に関する情報</a>、診療報酬情報提供サービス 医薬品マスター。「添付文書」はPMDA（医薬品医療機器総合機構）の該当ページを別タブで開きます。変更調剤の可否は処方箋の記載・在庫規格等で確認してください。</div>
 </footer>
 <script>
@@ -112,7 +112,7 @@ function itemHtml(it,g,hit){
   if(it.f&F.JUN)t+='<span class="tag" title="昭和42年以前に収載され、価格差のある後発品があるもの">準先発</span>';
   if(it.f&F.HOSHI)t+='<span class="tag" title="後発品と同額以下の先発品（置換え率の計算から除外）">☆</span>';
   if(it.f&F.STAR)t+='<span class="tag" title="先発品と同額以上の後発品（加算等の算定対象外）">★</span>';
-  if(it.f&F.SENTEI)t+=`<span class="tag s" title="先発品を希望した場合の特別の料金（単位あたり・税込の目安）">選定療養${it.extra>0?` ＋${(it.extra*1.1).toLocaleString(undefined,{maximumFractionDigits:2})}円/${esc(g.unit)}`:''}</span>`;
+  if(it.f&F.SENTEI)t+=`<span class="tag s" title="特別の料金＝この額×数量を、内服は1日分ごと（外用・頓服・注射は1調剤分ごと）に点数計算（15円以下は1点、以降10円ごとに1点）し、×10円＋消費税。15円以下でも1点（税込11円）かかります">選定療養${it.extra>0?` 差額の1/2：${it.extra.toLocaleString(undefined,{maximumFractionDigits:2})}円/${esc(g.unit)}`:''}</span>`;
   if(it.f&F.KEIKA)t+=`<span class="tag k">経過措置 ${esc(it.keika)}</span>`;
   return `<div class="it${hit?' hit':''}"><span class="nm">${esc(it.name)}</span>${it.maker?`<span class="mk">${esc(it.maker)}</span>`:''}${t}<span class="rt"><span class="pr">${yen(it.price,g.unit)}</span>${docLink(it)}</span></div>`;
 }
